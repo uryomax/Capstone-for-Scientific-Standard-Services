@@ -1,16 +1,13 @@
 import { useState, useEffect } from "react";
 
 export default function RightPanel() {
-  const name =
-    sessionStorage.getItem("activeName") || // ← changed
-    sessionStorage.getItem("activeUser") || // ← changed
-    "Unknown User";
-
   const [activeUsers, setActiveUsers] = useState([]);
   const [error, setError] = useState("");
 
   useEffect(() => {
     loadCurrentlyLoggedIn();
+    const interval = setInterval(loadCurrentlyLoggedIn, 35000);
+    return () => clearInterval(interval);
   }, []);
 
   function formatTime(ts) {
@@ -22,22 +19,28 @@ export default function RightPanel() {
 
   async function loadCurrentlyLoggedIn() {
     try {
-      const res = await fetch("http://localhost:3000/api/logs");
-      const logs = await res.json();
+      const [logsRes, activeRes] = await Promise.all([
+        fetch("http://localhost:3000/api/logs"),
+        fetch("http://localhost:3000/api/active-users"),
+      ]);
 
-      const seen = new Set();
-      const users = logs
-        .filter((log) => log.action?.toLowerCase().includes("log"))
-        .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
-        .filter((log) => {
-          if (seen.has(log.username)) return false;
-          seen.add(log.username);
-          return log.action?.toLowerCase().includes("in");
-        });
+      const logs = await logsRes.json();
+      const activeUsernames = await activeRes.json();
+
+      const userDetails = {};
+      logs.forEach((log) => {
+        if (!userDetails[log.username]) {
+          userDetails[log.username] = log;
+        }
+      });
+
+      const users = activeUsernames
+        .map((username) => userDetails[username])
+        .filter(Boolean);
 
       setActiveUsers(users);
     } catch (err) {
-      console.error("Failed to load logs:", err);
+      console.error("Failed to load:", err);
       setError("Failed to load.");
     }
   }

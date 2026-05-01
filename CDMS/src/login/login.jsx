@@ -1,3 +1,4 @@
+// export default Login;
 import React, { useState, useEffect } from "react";
 import "./login.css";
 import { useNavigate } from "react-router-dom";
@@ -10,7 +11,6 @@ const Login = () => {
   const [error, setError] = useState("");
   const navigate = useNavigate();
 
-  // ← redirect if already logged in
   useEffect(() => {
     const role = sessionStorage.getItem("role");
     if (role) {
@@ -42,16 +42,24 @@ const Login = () => {
       });
 
       const data = await res.json();
+
       if (data.success) {
         localStorage.setItem("name", data.name);
-        // localStorage.setItem("role", data.role);
         localStorage.setItem("username", data.username);
-        // sessionStorage - role is per-tab so multiple accounts work
+
         sessionStorage.setItem("role", data.role);
         sessionStorage.setItem("activeUser", data.username);
         sessionStorage.setItem("activeName", data.name);
         sessionStorage.setItem("userRole", data.role);
 
+        // immediate heartbeat
+        await fetch("http://localhost:3000/api/heartbeat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username: data.username }),
+        });
+
+        // save login log
         await fetch("http://localhost:3000/api/logs", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
